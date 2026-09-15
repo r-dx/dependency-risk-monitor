@@ -1,0 +1,1 @@
+"""Dependency advisory monitor."""

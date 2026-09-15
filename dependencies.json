@@ -1,0 +1,5 @@
+[
+  {"ecosystem": "PyPI", "name": "requests", "version": "2.32.3"},
+  {"ecosystem": "PyPI", "name": "urllib3", "version": "2.2.3"},
+  {"ecosystem": "PyPI", "name": "jinja2", "version": "3.1.4"}
+]
