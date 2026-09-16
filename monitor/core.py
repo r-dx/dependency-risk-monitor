@@ -19,11 +19,37 @@ def query_osv(dep: dict, timeout: float = 15) -> dict:
         raise AdvisoryUnavailable(str(exc)) from exc
 
 def normalize(dep: dict, payload: dict) -> dict:
-    advisories = []
+    raw = []
     for item in payload.get("vulns", []):
-        aliases = sorted(set(item.get("aliases", [])))
+        aliases = set(item.get("aliases", []))
         refs = sorted({r["url"] for r in item.get("references", []) if r.get("url")})
-        advisories.append({"id": item["id"], "aliases": aliases, "references": refs})
+        raw.append({"id": item["id"], "identifiers": aliases | {item["id"]}, "references": set(refs)})
+
+    groups = []
+    for advisory in raw:
+        overlapping = [group for group in groups if group["identifiers"] & advisory["identifiers"]]
+        if not overlapping:
+            groups.append(advisory)
+            continue
+        merged = advisory
+        for group in overlapping:
+            merged["identifiers"] |= group["identifiers"]
+            merged["references"] |= group["references"]
+            groups.remove(group)
+        groups.append(merged)
+
+    def identifier_rank(value: str) -> tuple[int, str]:
+        prefixes = ("GHSA-", "CVE-", "OSV-", "PYSEC-")
+        return (next((index for index, prefix in enumerate(prefixes) if value.startswith(prefix)), len(prefixes)), value)
+
+    advisories = []
+    for group in groups:
+        canonical = min(group["identifiers"], key=identifier_rank)
+        advisories.append({
+            "id": canonical,
+            "aliases": sorted(group["identifiers"] - {canonical}),
+            "references": sorted(group["references"]),
+        })
     advisories.sort(key=lambda x: x["id"])
     return {
         "package": dep,
