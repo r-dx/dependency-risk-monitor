@@ -12,7 +12,19 @@ def test_normalizes_and_distinguishes_empty_response():
     assert empty["advisories"] == []
     result = normalize(DEP, {"vulns": [{"id": "OSV-2", "aliases": ["CVE-2"], "references": [{"url": "https://osv.dev/vulnerability/OSV-2"}]}]})
     assert result["observation"] == "advisories_returned"
-    assert result["advisories"][0]["id"] == "OSV-2"
+    assert result["advisories"][0]["id"] == "CVE-2"
+    assert result["advisories"][0]["aliases"] == ["OSV-2"]
+
+def test_alias_equivalent_records_are_merged():
+    payload = {"vulns": [
+        {"id": "GHSA-abcd-1234-5678", "aliases": ["CVE-2026-1000", "PYSEC-2026-1"], "references": [{"url": "https://example.invalid/one"}]},
+        {"id": "PYSEC-2026-1", "aliases": ["CVE-2026-1000", "GHSA-abcd-1234-5678"], "references": [{"url": "https://example.invalid/two"}]},
+    ]}
+    advisories = normalize(DEP, payload)["advisories"]
+    assert len(advisories) == 1
+    assert advisories[0]["id"] == "GHSA-abcd-1234-5678"
+    assert advisories[0]["aliases"] == ["CVE-2026-1000", "PYSEC-2026-1"]
+    assert len(advisories[0]["references"]) == 2
 
 def test_timestamp_only_does_not_rewrite(tmp_path):
     source = tmp_path / "deps.json"; output = tmp_path / "report.json"
